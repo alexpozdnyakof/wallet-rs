@@ -25,7 +25,7 @@ fn read_passphrase() -> Result<Zeroizing<String>, String> {
     if stdin().is_terminal() {
         let first = Zeroizing::new(rpassword::prompt_password("Passphrase (empty for none): ").map_err(err)?);
         let again = Zeroizing::new(rpassword::prompt_password("Repeat passphrase: ").map_err(err)?);
-        // опечатка в passphrase тихо даст другой кошелёк, поэтому спрашиваем дважды
+        // a typo silently yields a different wallet, so ask twice
         if first != again {
             return Err("passphrases do not match".into());
         }
@@ -42,7 +42,7 @@ fn run(args: &[String]) -> Result<String, String> {
     match arg(0) {
         Some("generate") => {
             let words: usize = arg(1).unwrap_or("12").parse().map_err(|_| "word count must be a number")?;
-            // ENT = words * 11 * 32 / 33 бит -> байты
+            // ENT = words * 11 * 32 / 33 bits, converted to bytes
             if !matches!(words, 12 | 15 | 18 | 21 | 24) {
                 return Err("word count must be one of 12, 15, 18, 21, 24".into());
             }

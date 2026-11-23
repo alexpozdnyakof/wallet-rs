@@ -1,4 +1,4 @@
-//! Официальные векторы trezor/python-mnemonic (английский словарь, passphrase "TREZOR").
+//! Official vectors from trezor/python-mnemonic (English wordlist, passphrase "TREZOR").
 
 use bip39::{entropy_to_mnemonic, mnemonic_to_entropy, mnemonic_to_seed, validate_mnemonic};
 

@@ -30,8 +30,8 @@ pub fn entropy_to_mnemonic(entropy: &[u8]) -> Result<Vec<&'static str>, Error> {
     let words = wordlist();
 
     let mut out = Vec::with_capacity((entropy.len() * 8 + cs_bits) / 11);
-    // Накопитель: в младших `nbits` битах лежат ещё не выданные биты.
-    // После добавления байта nbits <= 10 + 8 = 18, в u32 помещается.
+    // Accumulator: the low `nbits` bits hold bits not yet emitted as a word.
+    // After adding a byte nbits <= 10 + 8 = 18, which fits in u32.
     let mut acc: u32 = 0;
     let mut nbits = 0;
 
@@ -78,12 +78,13 @@ pub fn mnemonic_to_entropy(phrase: &str) -> Result<Zeroizing<Vec<u8>>, Error> {
 
     let list = wordlist();
     let mut entropy = Zeroizing::new(Vec::with_capacity((total_bits - cs_bits) / 8));
-    // Накопитель: после добавления слова nbits <= 7 + 11 = 18, влезает в u32.
+    // Accumulator: after adding a word nbits <= 7 + 11 = 18, which fits in u32.
+    // Bits shifted out of the top are already emitted, so they are never read.
     let mut acc: u32 = 0;
     let mut nbits = 0;
 
     for (pos, word) in words.iter().enumerate() {
-        // wordlist отсортирован, значит работает бинарный поиск
+        // the wordlist is sorted, so binary search works
         let idx = list.binary_search(word).map_err(|_| Error::UnknownWord(pos))?;
         acc = (acc << 11) | idx as u32;
         nbits += 11;
@@ -93,7 +94,7 @@ pub fn mnemonic_to_entropy(phrase: &str) -> Result<Zeroizing<Vec<u8>>, Error> {
         }
     }
 
-    // После всей энтропии в накопителе остались ровно биты checksum.
+    // After all the entropy bytes, exactly the checksum bits remain.
     debug_assert_eq!(nbits, cs_bits);
     let given = (acc & ((1 << cs_bits) - 1)) as u8;
     let (expected, _) = checksum(&entropy)?;
@@ -130,7 +131,7 @@ mod tests {
         assert!(w.windows(2).all(|p| p[0] < p[1]));
     }
 
-    // Официальные векторы trezor/python-mnemonic (vectors.json)
+    // Official vectors from trezor/python-mnemonic (vectors.json)
     #[test]
     fn vector_zeros_128() {
         assert_eq!(
@@ -206,7 +207,7 @@ mod tests {
 
     #[test]
     fn rejects_bad_checksum() {
-        // последнее слово заменено: about -> abandon
+        // last word replaced: about -> abandon
         let p = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon";
         assert_eq!(validate_mnemonic(p), Err(Error::InvalidChecksum));
     }

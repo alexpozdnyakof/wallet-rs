@@ -12,7 +12,7 @@ unicode-normalization = "0.1.26"
 zeroize = "1.9.2"
 
 [features]
-# Для сборки под браузер/Node (wasm32-unknown-unknown): cargo build --features wasm-js
+# For browser/Node builds (wasm32-unknown-unknown): cargo build --features wasm-js
 wasm-js = ["getrandom/wasm_js"]
 
 [dev-dependencies]

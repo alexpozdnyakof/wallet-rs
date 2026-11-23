@@ -2,7 +2,7 @@ use zeroize::Zeroizing;
 
 use crate::Error;
 
-/// Допустимые размеры энтропии в байтах: 128, 160, 192, 224, 256 бит.
+/// Allowed entropy sizes in bytes: 128, 160, 192, 224, 256 bits.
 pub(crate) const VALID_ENTROPY_BYTES: [usize; 5] = [16, 20, 24, 28, 32];
 
 pub(crate) fn check_len(bytes: usize) -> Result<(), Error> {

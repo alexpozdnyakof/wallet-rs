@@ -42,7 +42,7 @@ mod tests {
     const ABOUT: &str =
         "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
 
-    // Официальный вектор Trezor; значение независимо пересчитано через Python hashlib.
+    // Official Trezor vector; the value was recomputed independently with Python hashlib.
     #[test]
     fn vector_trezor_passphrase() {
         assert_eq!(
@@ -69,7 +69,7 @@ mod tests {
 
     #[test]
     fn nfkd_makes_composed_and_decomposed_equal() {
-        // "é" одним символом и "e" + combining acute
+        // "é" as one code point vs "e" + combining acute accent
         assert_eq!(
             *mnemonic_to_seed(ABOUT, "caf\u{e9}"),
             *mnemonic_to_seed(ABOUT, "cafe\u{301}")
