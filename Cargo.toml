@@ -5,7 +5,9 @@ edition = "2024"
 
 [dependencies]
 getrandom = "0.4.3"
+pbkdf2 = { version = "0.13.0", features = ["sha2"] }
 sha2 = "0.11.1"
+unicode-normalization = "0.1.26"
 zeroize = "1.9.2"
 
 [features]

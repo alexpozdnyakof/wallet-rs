@@ -2,12 +2,14 @@ use sha2::{Digest, Sha256};
 
 mod entropy;
 mod mnemonic;
+mod seed;
 
 use entropy::check_len;
 pub use entropy::{EntropySource, OsEntropy, generate_entropy, generate_entropy_with};
 pub use mnemonic::{
     entropy_to_mnemonic, generate_mnemonic, mnemonic_to_entropy, validate_mnemonic, wordlist,
 };
+pub use seed::{SEED_LEN, mnemonic_to_seed};
 
 #[derive(Debug, PartialEq)]
 pub enum Error {
