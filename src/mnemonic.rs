@@ -1,5 +1,7 @@
 use std::sync::LazyLock;
 
+use zeroize::Zeroizing;
+
 use crate::{Error, checksum, generate_entropy};
 
 const WORDLIST_RAW: &str = include_str!("wordlists/english.txt");
@@ -39,6 +41,48 @@ pub fn entropy_to_mnemonic(entropy: &[u8]) -> Result<Vec<&'static str>, Error> {
 
     debug_assert_eq!(nbits, 0);
     Ok(out)
+}
+
+/// Шаг 6: фраза -> энтропия с проверкой checksum.
+/// Обратная операция к `entropy_to_mnemonic`.
+pub fn mnemonic_to_entropy(phrase: &str) -> Result<Zeroizing<Vec<u8>>, Error> {
+    let words: Vec<&str> = phrase.split_whitespace().collect();
+    if !matches!(words.len(), 12 | 15 | 18 | 21 | 24) {
+        return Err(Error::InvalidWordCount(words.len()));
+    }
+    let total_bits = words.len() * 11;
+    let cs_bits = total_bits / 33;
+
+    let list = wordlist();
+    let mut entropy = Zeroizing::new(Vec::with_capacity((total_bits - cs_bits) / 8));
+    // Накопитель: после добавления слова nbits <= 7 + 11 = 18, влезает в u32.
+    let mut acc: u32 = 0;
+    let mut nbits = 0;
+
+    for (pos, word) in words.iter().enumerate() {
+        // wordlist отсортирован, значит работает бинарный поиск
+        let idx = list.binary_search(word).map_err(|_| Error::UnknownWord(pos))?;
+        acc = (acc << 11) | idx as u32;
+        nbits += 11;
+        while nbits >= 8 && entropy.len() < (total_bits - cs_bits) / 8 {
+            entropy.push((acc >> (nbits - 8)) as u8);
+            nbits -= 8;
+        }
+    }
+
+    // После всей энтропии в накопителе остались ровно биты checksum.
+    debug_assert_eq!(nbits, cs_bits);
+    let given = (acc & ((1 << cs_bits) - 1)) as u8;
+    let (expected, _) = checksum(&entropy)?;
+    if given != expected {
+        return Err(Error::InvalidChecksum);
+    }
+    Ok(entropy)
+}
+
+/// Проверка фразы без возврата энтропии.
+pub fn validate_mnemonic(phrase: &str) -> Result<(), Error> {
+    mnemonic_to_entropy(phrase).map(|_| ())
 }
 
 /// Новая мнемоника из энтропии ОС.
@@ -115,6 +159,51 @@ mod tests {
         for (bytes, words) in [(16, 12), (20, 15), (24, 18), (28, 21), (32, 24)] {
             assert_eq!(generate_mnemonic(bytes).unwrap().len(), words);
         }
+    }
+
+    #[test]
+    fn roundtrip_all_sizes() {
+        for bytes in [16, 20, 24, 28, 32] {
+            let entropy = generate_entropy(bytes).unwrap();
+            let phrase = entropy_to_mnemonic(&entropy).unwrap().join(" ");
+            assert_eq!(&mnemonic_to_entropy(&phrase).unwrap()[..], &entropy[..]);
+        }
+    }
+
+    #[test]
+    fn decode_known_vector() {
+        let e = mnemonic_to_entropy(
+            "legal winner thank year wave sausage worth useful legal winner thank yellow",
+        )
+        .unwrap();
+        assert_eq!(&e[..], &[0x7f; 16]);
+    }
+
+    #[test]
+    fn rejects_bad_checksum() {
+        // последнее слово заменено: about -> abandon
+        let p = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon";
+        assert_eq!(validate_mnemonic(p), Err(Error::InvalidChecksum));
+    }
+
+    #[test]
+    fn rejects_unknown_word_with_position() {
+        let p = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon notaword";
+        assert_eq!(validate_mnemonic(p), Err(Error::UnknownWord(11)));
+    }
+
+    #[test]
+    fn rejects_bad_word_count() {
+        assert_eq!(validate_mnemonic("abandon abandon"), Err(Error::InvalidWordCount(2)));
+        assert_eq!(validate_mnemonic(""), Err(Error::InvalidWordCount(0)));
+    }
+
+    #[test]
+    fn tolerates_extra_whitespace() {
+        assert!(validate_mnemonic(
+            "  legal winner  thank year wave sausage worth useful legal winner thank\tyellow\n"
+        )
+        .is_ok());
     }
 
     #[test]

@@ -5,12 +5,19 @@ mod mnemonic;
 
 use entropy::check_len;
 pub use entropy::{EntropySource, OsEntropy, generate_entropy, generate_entropy_with};
-pub use mnemonic::{entropy_to_mnemonic, generate_mnemonic, wordlist};
+pub use mnemonic::{
+    entropy_to_mnemonic, generate_mnemonic, mnemonic_to_entropy, validate_mnemonic, wordlist,
+};
 
 #[derive(Debug, PartialEq)]
 pub enum Error {
     InvalidEntropyLength(usize),
     Rng,
+    /// Число слов не из {12, 15, 18, 21, 24}.
+    InvalidWordCount(usize),
+    /// Слова нет в wordlist; позиция слова во фразе (с нуля).
+    UnknownWord(usize),
+    InvalidChecksum,
 }
 
 /// Шаг 2: checksum = первые ENT/32 бит SHA-256(entropy).
