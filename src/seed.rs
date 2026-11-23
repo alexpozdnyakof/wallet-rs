@@ -4,15 +4,23 @@ use unicode_normalization::UnicodeNormalization;
 use zeroize::Zeroizing;
 
 const ROUNDS: u32 = 2048;
+/// Length of the seed in bytes.
 pub const SEED_LEN: usize = 64;
 
-/// Шаг 5: mnemonic -> seed (BIP-39).
+/// Derives the 64-byte seed from a mnemonic and an optional passphrase.
 ///
-/// PBKDF2-HMAC-SHA512, 2048 итераций, salt = "mnemonic" + passphrase.
-/// Фраза и passphrase приводятся к NFKD, как требует спецификация.
+/// Uses PBKDF2-HMAC-SHA512 with 2048 iterations and the salt
+/// `"mnemonic" + passphrase`. Both inputs are normalized to NFKD first, as
+/// the specification requires. Pass `""` for no passphrase.
 ///
-/// Спецификация не требует валидной фразы, поэтому checksum здесь не
-/// проверяется; для этого есть `validate_mnemonic`.
+/// The phrase is not validated, as the specification does not require it;
+/// call [`validate_mnemonic`](crate::validate_mnemonic) first.
+///
+/// ```
+/// let seed = bip39::mnemonic_to_seed("abandon abandon abandon abandon abandon abandon \
+///     abandon abandon abandon abandon abandon about", "TREZOR");
+/// assert_eq!(seed[..4], [0xc5, 0x52, 0x57, 0xc3]);
+/// ```
 pub fn mnemonic_to_seed(mnemonic: &str, passphrase: &str) -> Zeroizing<[u8; SEED_LEN]> {
     let password: Zeroizing<String> = Zeroizing::new(mnemonic.nfkd().collect());
     let mut salt = Zeroizing::new(String::from("mnemonic"));

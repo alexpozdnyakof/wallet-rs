@@ -13,13 +13,18 @@ pub(crate) fn check_len(bytes: usize) -> Result<(), Error> {
     }
 }
 
-/// Источник случайных байт. Позволяет подменять ОС в тестах
-/// и добавлять другие источники (кости, аппаратный TRNG).
+/// A source of random bytes.
+///
+/// Implement it to replace the OS in tests or to add other sources
+/// (dice rolls, a hardware TRNG).
 pub trait EntropySource {
     fn fill(&mut self, buf: &mut [u8]) -> Result<(), Error>;
 }
 
-/// CSPRNG операционной системы (через `getrandom`, работает на всех её платформах).
+/// The operating system's CSPRNG, accessed through `getrandom`.
+///
+/// Works on every platform `getrandom` supports; on `wasm32-unknown-unknown`
+/// enable the `wasm-js` feature.
 pub struct OsEntropy;
 
 impl EntropySource for OsEntropy {
@@ -28,7 +33,23 @@ impl EntropySource for OsEntropy {
     }
 }
 
-/// Энтропия из заданного источника. Буфер затирается при drop.
+/// Fills a buffer of `bytes` bytes from `src`; the buffer is zeroed on drop.
+///
+/// `bytes` must be one of 16, 20, 24, 28, 32.
+///
+/// ```
+/// use bip39::{EntropySource, Error, generate_entropy_with};
+///
+/// struct Fixed;
+/// impl EntropySource for Fixed {
+///     fn fill(&mut self, buf: &mut [u8]) -> Result<(), Error> {
+///         buf.fill(7);
+///         Ok(())
+///     }
+/// }
+///
+/// assert_eq!(&generate_entropy_with(&mut Fixed, 16).unwrap()[..], &[7u8; 16]);
+/// ```
 pub fn generate_entropy_with(
     src: &mut impl EntropySource,
     bytes: usize,
@@ -39,7 +60,9 @@ pub fn generate_entropy_with(
     Ok(buf)
 }
 
-/// Энтропия из ОС.
+/// Generates `bytes` bytes of entropy from the OS CSPRNG.
+///
+/// `bytes` must be one of 16, 20, 24, 28, 32 (128 to 256 bits).
 pub fn generate_entropy(bytes: usize) -> Result<Zeroizing<Vec<u8>>, Error> {
     generate_entropy_with(&mut OsEntropy, bytes)
 }

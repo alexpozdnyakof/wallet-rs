@@ -6,14 +6,25 @@ use crate::{Error, checksum, generate_entropy};
 
 const WORDLIST_RAW: &str = include_str!("wordlists/english.txt");
 
-/// 2048 слов; индекс слова = 11-битное число.
+// 2048 words; a word's index is its 11-bit value.
 static WORDLIST: LazyLock<Vec<&'static str>> = LazyLock::new(|| WORDLIST_RAW.lines().collect());
 
+/// The 2048-word English wordlist, sorted, so a word's index is its 11-bit value.
 pub fn wordlist() -> &'static [&'static str] {
     &WORDLIST
 }
 
-/// Шаг 3–4: entropy ‖ checksum, нарезка по 11 бит, индекс -> слово.
+/// Encodes entropy as mnemonic words.
+///
+/// Appends the checksum to the entropy, splits the bits into 11-bit groups
+/// and maps each group to a word. 16, 20, 24, 28 or 32 bytes give 12, 15,
+/// 18, 21 or 24 words.
+///
+/// ```
+/// let words = bip39::entropy_to_mnemonic(&[0u8; 16]).unwrap();
+/// assert_eq!(words.len(), 12);
+/// assert_eq!(words[11], "about");
+/// ```
 pub fn entropy_to_mnemonic(entropy: &[u8]) -> Result<Vec<&'static str>, Error> {
     let (cs, cs_bits) = checksum(entropy)?;
     let words = wordlist();
@@ -43,8 +54,20 @@ pub fn entropy_to_mnemonic(entropy: &[u8]) -> Result<Vec<&'static str>, Error> {
     Ok(out)
 }
 
-/// Шаг 6: фраза -> энтропия с проверкой checksum.
-/// Обратная операция к `entropy_to_mnemonic`.
+/// Decodes a phrase back into entropy and verifies its checksum.
+///
+/// The inverse of [`entropy_to_mnemonic`]. Words may be separated by any
+/// whitespace.
+///
+/// ```
+/// use bip39::{Error, mnemonic_to_entropy};
+///
+/// let ok = "legal winner thank year wave sausage worth useful legal winner thank yellow";
+/// assert_eq!(&mnemonic_to_entropy(ok).unwrap()[..], &[0x7f; 16]);
+///
+/// let typo = "legal winner thank year wave sausage worth useful legal winner thank yelloww";
+/// assert_eq!(mnemonic_to_entropy(typo), Err(Error::UnknownWord(11)));
+/// ```
 pub fn mnemonic_to_entropy(phrase: &str) -> Result<Zeroizing<Vec<u8>>, Error> {
     let words: Vec<&str> = phrase.split_whitespace().collect();
     if !matches!(words.len(), 12 | 15 | 18 | 21 | 24) {
@@ -80,12 +103,14 @@ pub fn mnemonic_to_entropy(phrase: &str) -> Result<Zeroizing<Vec<u8>>, Error> {
     Ok(entropy)
 }
 
-/// Проверка фразы без возврата энтропии.
+/// Checks the word count, the words and the checksum of a phrase.
 pub fn validate_mnemonic(phrase: &str) -> Result<(), Error> {
     mnemonic_to_entropy(phrase).map(|_| ())
 }
 
-/// Новая мнемоника из энтропии ОС.
+/// Generates a new random mnemonic from OS entropy.
+///
+/// `entropy_bytes` is one of 16, 20, 24, 28, 32.
 pub fn generate_mnemonic(entropy_bytes: usize) -> Result<Vec<&'static str>, Error> {
     entropy_to_mnemonic(&generate_entropy(entropy_bytes)?)
 }
