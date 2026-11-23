@@ -1,9 +1,11 @@
 use sha2::{Digest, Sha256};
 
 mod entropy;
+mod mnemonic;
 
 use entropy::check_len;
 pub use entropy::{EntropySource, OsEntropy, generate_entropy, generate_entropy_with};
+pub use mnemonic::{entropy_to_mnemonic, generate_mnemonic, wordlist};
 
 #[derive(Debug, PartialEq)]
 pub enum Error {
@@ -26,6 +28,7 @@ pub fn checksum(entropy: &[u8]) -> Result<(u8, usize), Error> {
 mod tests {
     use super::*;
 
+    // Вектор из официального trezor/python-mnemonic:
     // entropy 00..00 (16 байт) -> "abandon ... about"
     // последнее слово "about" = индекс 3 = 0b0000_0000_011,
     // т.е. checksum (4 бита) = 0b0011 = 3.
