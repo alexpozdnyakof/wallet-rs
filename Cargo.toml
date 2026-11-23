@@ -13,3 +13,6 @@ zeroize = "1.9.2"
 [features]
 # Для сборки под браузер/Node (wasm32-unknown-unknown): cargo build --features wasm-js
 wasm-js = ["getrandom/wasm_js"]
+
+[dev-dependencies]
+serde_json = "1.0.154"
